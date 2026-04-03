@@ -43,8 +43,8 @@ class Trainer:
             # ids: (batch, seq_len)
             for input_ids, target_ids in self.dataloader:
 
-                input_ids.to(config["device"])
-                target_ids.to(config["device"])
+                input_ids = input_ids.to(config["device"])
+                target_ids = target_ids.to(config["device"])
 
                 # Clear gradient each round
                 self.optimizer.zero_grad()

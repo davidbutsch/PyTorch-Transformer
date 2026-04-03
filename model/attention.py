@@ -51,6 +51,7 @@ class MaskedAttention(nn.Module):
                 seq_len,
                 dtype=torch.bool,
                 requires_grad=False,
+                device=config["device"],
             ),
             diagonal=1,
         )
