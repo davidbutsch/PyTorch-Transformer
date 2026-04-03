@@ -31,7 +31,7 @@ class Generator:
         for _ in range(max_new_tokens):
 
             logits: torch.Tensor = self.model(
-                torch.tensor([self.context], dtype=torch.int)
+                torch.tensor([self.context], dtype=torch.int, device=config["device"])
             )  # (batch, seq_len, vocab_size)
 
             # Greedy sample from last row

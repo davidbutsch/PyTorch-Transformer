@@ -6,6 +6,8 @@ from training import Trainer
 
 def train():
 
+    print(f"Training on {config['device']}")
+
     model = Transformer().to(config["device"])
     tokenizer = Tokenizer()
 
