@@ -1,3 +1,4 @@
+from config import config
 from model import Transformer
 from tokenizer import Tokenizer
 from training import Trainer
@@ -5,7 +6,7 @@ from training import Trainer
 
 def train():
 
-    model = Transformer()
+    model = Transformer().to(config["device"])
     tokenizer = Tokenizer()
 
     trainer = Trainer(model, tokenizer)

@@ -1,4 +1,3 @@
-import json
 import torch
 from model import Transformer
 from tokenizer import Tokenizer
@@ -9,7 +8,7 @@ class Generator:
     def __init__(self):
 
         # Instantiate transformer, tokenizer
-        self.model = Transformer()
+        self.model = Transformer().to(config["device"])
         self.tokenizer = Tokenizer()
 
         # Put model in evaluation mode

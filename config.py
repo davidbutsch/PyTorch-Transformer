@@ -1,3 +1,4 @@
+import torch
 from pathlib import Path
 
 config = {
@@ -14,4 +15,5 @@ config = {
     "ds_path": Path(__file__).parent / "training" / "tiny_shakespeare.txt",
     "vocabs_path": Path(__file__).parent / "vocabs.json",
     "model_basename": Path(__file__).parent / "model",
+    "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 }
