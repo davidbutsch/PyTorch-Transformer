@@ -1,0 +1,14 @@
+# PyTorch model checkpoints
+*.pt
+*.pth
+*.pwf
+
+# Large datasets and data downloads
+data/
+datasets/
+*/data/
+
+# Log files (TensorBoard, etc.)
+runs/
+logs/
+*.log
