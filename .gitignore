@@ -220,6 +220,9 @@ __marimo__/
 *.pth
 *.pwf
 
+# Vocabs
+vocabs.json
+
 # Large datasets and data downloads
 data/
 datasets/

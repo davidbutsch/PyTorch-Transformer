@@ -70,15 +70,21 @@ class Trainer:
 
                 print(f"Loss: {loss.item()}, step: {step}, epoch: {epoch_n}")
 
-                torch.save(
-                    {
-                        "epoch": epoch,  # type: ignore
-                        "model_state_dict": self.model.state_dict(),
-                        "optimizer_state_dict": self.optimizer.state_dict(),
-                        "step": step,
-                    },
-                    f"{config["model_basename"]}.pt",
-                )
+                if step % 100 == 0:
+
+                    torch.save(
+                        {
+                            "epoch": epoch,  # type: ignore
+                            "model_state_dict": self.model.state_dict(),
+                            "optimizer_state_dict": self.optimizer.state_dict(),
+                            "step": step,
+                        },
+                        f"{config["model_basename"]}.pt",
+                    )
+
+                    # Save vocab state
+                    with open(config["vocabs_path"], "w") as file:
+                        json.dump(self.tokenizer.vocabs, file)
 
                 # Every 10 steps print current output
                 if step % 5 == 0:
