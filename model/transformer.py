@@ -22,9 +22,9 @@ class Transformer(nn.Module):
         self.projection = Projection()
 
         # Load model state from disk
-        if os.path.exists(f"{config["model_basename"]}.pt"):
+        if os.path.exists(f"{config['model_basename']}.pt"):
             print("Loading saved model...")
-            state = torch.load(f"{config["model_basename"]}.pt")
+            state = torch.load(f"{config['model_basename']}.pt")
             self.load_state_dict(state["model_state_dict"])
 
     # Input token ids: (batch, seq_len)

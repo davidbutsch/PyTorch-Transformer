@@ -79,7 +79,7 @@ class Trainer:
                             "optimizer_state_dict": self.optimizer.state_dict(),
                             "step": step,
                         },
-                        f"{config["model_basename"]}.pt",
+                        f"{config['model_basename']}.pt",
                     )
 
                     # Save vocab state
@@ -105,7 +105,7 @@ class Trainer:
                 "optimizer_state_dict": self.optimizer.state_dict(),
                 "step": step,
             },
-            f"{config["model_basename"]}.pt",
+            f"{config['model_basename']}.pt",
         )
 
         # Save vocab state
