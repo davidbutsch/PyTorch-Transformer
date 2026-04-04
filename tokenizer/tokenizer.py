@@ -15,6 +15,7 @@ class Tokenizer:
             with open(config["vocabs_path"], "r") as file:
                 print("Loading saved vocabulary...")
                 self.vocabs = json.load(file)
+                self.inverse_vocab = {v: k for k, v in self.vocabs.items()}
 
     # Only return lowercase alphanumeric characteres
     def normalize(self, text: str) -> str:
