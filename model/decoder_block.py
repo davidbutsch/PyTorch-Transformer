@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from .residual_connection import ResidualConnection
-from .attention import MaskedAttention
+from .attention import MaskedMultiHeadAttention
 from .feedforward import Feedforward
 
 
@@ -12,7 +12,7 @@ class DecoderBlock(nn.Module):
         # Each decoder block applies a residually connected attention -> ffn
         self.residual_connection = ResidualConnection(
             [
-                MaskedAttention(),
+                MaskedMultiHeadAttention(),
                 Feedforward(),
             ]
         )

@@ -1,4 +1,4 @@
-from .attention import MaskedAttention
+from .attention import MaskedMultiHeadAttention
 from .decoder_block import DecoderBlock
 from .embedding import Embedding
 from .feedforward import Feedforward
