@@ -13,7 +13,7 @@ config = {
     "batch_size": 16,  # Number of sentences per training batch
     "lr": 1e-4,  # Learning rate ~ adjustment step size
     "ds_path": Path(__file__).parent / "training" / "tiny_shakespeare.txt",
-    "vocabs_path": Path(__file__).parent / "vocabs.json",
-    "model_basename": Path(__file__).parent / "model",
+    "vocabs_path": Path(__file__).parent / "saves" / "vocabs.json",
+    "model_basename": Path(__file__).parent / "saves" / "model",
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 }
