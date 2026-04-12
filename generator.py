@@ -43,6 +43,6 @@ class Generator:
 
         # Decode token_ids to text
         tokens = self.tokenizer.decode(response_ids)
-        response = " ".join(tokens)
+        response = "".join(tokens)
 
         return response

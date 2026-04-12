@@ -19,12 +19,12 @@ class Tokenizer:
 
     # Only return lowercase alphanumeric characteres
     def normalize(self, text: str) -> str:
-        alphanumeric = re.sub(r"[^a-zA-Z0-9 ]", "", text)
-        return alphanumeric.lower()
+        # alphanumeric = re.sub(r"[^a-zA-Z0-9 ]", "", text)
+        return text.lower()
 
     # Split input text into seperate tokens
     def tokenize(self, text: str) -> list[str]:
-        return text.split()
+        return list(text)  # Character-level tokenization
 
     # Add each new unique token to set and assign token id
     def build_vocab(self, tokens: list[str]):

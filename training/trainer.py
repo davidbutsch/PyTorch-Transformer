@@ -93,7 +93,7 @@ class Trainer:
 
                     tokens = self.tokenizer.decode(flat.tolist())
 
-                    print(" ".join(tokens))
+                    print("".join(tokens))
 
         epoch_n += 1
 
