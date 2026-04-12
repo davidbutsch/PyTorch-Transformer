@@ -61,6 +61,9 @@ class Trainer:
                 # Compute gradients (backprop)
                 loss.backward()
 
+                # Clip gradient norm
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10)
+
                 # Nudge parameters based on grad_fn
                 self.optimizer.step()
 
