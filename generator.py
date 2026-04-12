@@ -16,7 +16,7 @@ class Generator:
 
         self.context: list[int] = []
 
-    def generate(self, prompt: str, max_new_tokens=20) -> str:
+    def generate(self, prompt: str, max_new_tokens=20, temperature=1.0) -> str:
 
         # Tokenize
         normalized_prompt = self.tokenizer.normalize(prompt)
@@ -34,8 +34,16 @@ class Generator:
                 torch.tensor([self.context], dtype=torch.int, device=config["device"])
             )  # (batch, seq_len, vocab_size)
 
-            # Greedy sample from last row
-            next_token_id = int(torch.argmax(logits[:, -1, :]).item())
+            # Pull out last token (prediction)
+            next_token_logits = logits[:, -1, :]  # (batch, vocab_size)
+
+            # Convert to probability distribution
+            next_token_probs = torch.softmax(next_token_logits / temperature, dim=-1)
+
+            # Sample from next token probability
+            next_token_id = int(
+                torch.multinomial(next_token_probs, num_samples=1).item()
+            )
 
             # Add prediction to conversation context and response_ids
             self.context.append(next_token_id)
