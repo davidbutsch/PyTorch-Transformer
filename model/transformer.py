@@ -8,7 +8,7 @@ from .positional_encoding import PositionalEncoding
 from .decoder_block import DecoderBlock
 from .projection import Projection
 
-from config import config
+from config import config, get_model_path
 
 
 class Transformer(nn.Module):
@@ -22,9 +22,9 @@ class Transformer(nn.Module):
         self.projection = Projection()
 
         # Load model state from disk
-        if os.path.exists(f"{config['model_basename']}.pt"):
+        if os.path.exists(get_model_path()):
             print("Loading saved model...")
-            state = torch.load(f"{config['model_basename']}.pt")
+            state = torch.load(get_model_path())
             self.load_state_dict(state["model_state_dict"])
 
     # Input token ids: (batch, seq_len)

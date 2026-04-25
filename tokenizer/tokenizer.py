@@ -1,7 +1,6 @@
 import os
 import json
-import re
-from config import config
+from config import config, get_vocabs_path
 
 
 class Tokenizer:
@@ -11,8 +10,8 @@ class Tokenizer:
         self.inverse_vocab = {config["pad_i"]: "<PAD>", 1: "<UNK>"}
 
         # Load vocab from disk
-        if os.path.exists(config["vocabs_path"]):
-            with open(config["vocabs_path"], "r") as file:
+        if os.path.exists(get_vocabs_path()):
+            with open(get_vocabs_path(), "r") as file:
                 print("Loading saved vocabulary...")
                 self.vocabs = json.load(file)
                 self.inverse_vocab = {v: k for k, v in self.vocabs.items()}

@@ -232,3 +232,6 @@ datasets/
 runs/
 logs/
 *.log
+
+.vscode
+.vscode/*

@@ -4,11 +4,12 @@ import torch
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 
-# from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from model import Transformer
 from tokenizer import Tokenizer
-from config import config
+from config import config, get_model_path, get_vocabs_path
 from .dataset import TextDataset
 
 
@@ -33,15 +34,19 @@ class Trainer:
 
     def train(self):
 
-        # # Tensorboard
-        # writer = SummaryWriter("helo!")
+        # Tensorboard
+        writer = SummaryWriter(log_dir=f"runs/{config['experiment_name']}")
 
         epoch_n = 0
         step = 0
 
         for epoch in range(config["num_epochs"]):
+
+            # Logger
+            loop = tqdm(self.dataloader, desc=f"Epoch {epoch_n}")
+
             # ids: (batch, seq_len)
-            for input_ids, target_ids in self.dataloader:
+            for input_ids, target_ids in loop:
 
                 input_ids = input_ids.to(config["device"])
                 target_ids = target_ids.to(config["device"])
@@ -67,36 +72,12 @@ class Trainer:
                 # Nudge parameters based on grad_fn
                 self.optimizer.step()
 
-                # writer.add_scalar("Loss", loss.item())
-                # writer.flush()
+                # Track loss in tensorboard
+                writer.add_scalar("Loss", loss.item(), step)
                 step += 1
 
-                print(f"Loss: {loss.item()}, step: {step}, epoch: {epoch_n}")
-
-                if step % 100 == 0:
-
-                    torch.save(
-                        {
-                            "epoch": epoch,  # type: ignore
-                            "model_state_dict": self.model.state_dict(),
-                            "optimizer_state_dict": self.optimizer.state_dict(),
-                            "step": step,
-                        },
-                        f"{config['model_basename']}.pt",
-                    )
-
-                    # Save vocab state
-                    with open(config["vocabs_path"], "w") as file:
-                        json.dump(self.tokenizer.vocabs, file)
-
-                # Every 10 steps print current output
-                if step % 5 == 0:
-                    predicted_ids = torch.argmax(logits, dim=2)  # (batch, seq_len)
-                    flat = predicted_ids.view(-1)  # (batch*seq_len)
-
-                    tokens = self.tokenizer.decode(flat.tolist())
-
-                    print("".join(tokens))
+                # Track loss in terminal log
+                loop.set_postfix(loss=f"{loss.item():.4f}")
 
         epoch_n += 1
 
@@ -108,9 +89,9 @@ class Trainer:
                 "optimizer_state_dict": self.optimizer.state_dict(),
                 "step": step,
             },
-            f"{config['model_basename']}.pt",
+            get_model_path(),
         )
 
         # Save vocab state
-        with open(config["vocabs_path"], "w") as file:
+        with open(get_vocabs_path(), "w") as file:
             json.dump(self.tokenizer.vocabs, file)
