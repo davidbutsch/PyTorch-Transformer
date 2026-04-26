@@ -89,7 +89,7 @@ class Trainer:
             # Logger
             loop = tqdm(
                 self.dataloader,
-                desc=f"Epoch={epoch}, lr={self.optimizer.param_groups[0]["lr"]:.2e}",
+                desc=f"Epoch={epoch}, lr={self.optimizer.param_groups[0]['lr']:.2e}",
             )
 
             # ids: (batch, seq_len)

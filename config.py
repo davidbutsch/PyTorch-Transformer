@@ -9,27 +9,32 @@ config = {
     "h": 8,  # Number of attention heads
     "N": 6,  # Number of decoder blocks
     "pad_i": 0,  # Padding token index
-    "num_epochs": 32,  # Number of iterations through complete data set
+    "num_epochs": 128,  # Number of iterations through complete data set
     "batch_size": 64,  # Number of sentences per training batch
     "max_lr": 1e-3,  # Maximum learning rate (after warmup)
     "min_lr_ratio": 0.1,  # Minimum learning rate as fraction of max_lr (e.g., 0.1 = decay to 10% of peak)
     "warmup_ratio": 0.05,  # Define what % of steps are warmup steps
-    "ds_path": Path(__file__).parent / "training" / "tiny_shakespeare.txt",
-    "experiment_name": "logger_test",
+    "experiment_name": "book_corpus",
+    "dataset": "rojagtap/bookcorpus",
+    "dataset_name": "bookcorpus",
     "saves_path": Path(__file__).parent / "saves",
+    "datasets_path": Path(__file__).parent / "datasets",
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 }
 
 
-def _get_saves_dir() -> Path:
-    saves_dir = Path(config["saves_path"])
-    saves_dir.mkdir(parents=True, exist_ok=True)
-    return saves_dir
+def _get_dir(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def get_preprocessed_ds_path() -> Path:
+    return _get_dir(config["datasets_path"]) / f"{config['dataset_name']}_tokens.bin"
 
 
 def get_vocabs_path() -> Path:
-    return _get_saves_dir() / f"vocabs_{config['experiment_name']}.json"
+    return _get_dir(config["datasets_path"]) / f"{config['dataset_name']}_vocabs.json"
 
 
 def get_model_path() -> Path:
-    return _get_saves_dir() / f"model_{config['experiment_name']}.pt"
+    return _get_dir(config["saves_path"]) / f"model_{config['experiment_name']}.pt"
