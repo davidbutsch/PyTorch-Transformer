@@ -12,7 +12,7 @@ from config import config, get_model_path
 
 
 class Transformer(nn.Module):
-    def __init__(self):
+    def __init__(self, state=None):
         super().__init__()
 
         # Instantiate layers
@@ -21,10 +21,8 @@ class Transformer(nn.Module):
         self.decoders = nn.ModuleList([DecoderBlock() for _ in range(config["N"])])
         self.projection = Projection()
 
-        # Load model state from disk
-        if os.path.exists(get_model_path()):
-            print("Loading saved model...")
-            state = torch.load(get_model_path())
+        # Initialize saved state
+        if state is not None:
             self.load_state_dict(state["model_state_dict"])
 
     # Input token ids: (batch, seq_len)

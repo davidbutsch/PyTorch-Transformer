@@ -5,10 +5,10 @@ from config import config
 
 
 class Generator:
-    def __init__(self):
+    def __init__(self, state):
 
         # Instantiate transformer, tokenizer
-        self.model = Transformer().to(config["device"])
+        self.model = Transformer(state).to(config["device"])
         self.tokenizer = Tokenizer()
 
         # Put model in evaluation mode
@@ -16,12 +16,11 @@ class Generator:
 
         self.context: list[int] = []
 
-    def generate(self, prompt: str, max_new_tokens=20, temperature=1.0) -> str:
+    def generate(self, prompt: str, max_new_tokens=200, temperature=1.0) -> str:
 
         # Tokenize
         normalized_prompt = self.tokenizer.normalize(prompt)
         tokens = self.tokenizer.tokenize(normalized_prompt)
-        self.tokenizer.build_vocab(tokens)
 
         self.context = self.tokenizer.encode(tokens)
 

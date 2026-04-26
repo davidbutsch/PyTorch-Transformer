@@ -17,7 +17,7 @@ from .dataset import TextDataset
 
 class Trainer:
 
-    def __init__(self, model: Transformer, tokenizer: Tokenizer) -> None:
+    def __init__(self, model: Transformer, tokenizer: Tokenizer, state=None) -> None:
 
         self.model = model
         self.tokenizer = tokenizer
@@ -36,12 +36,29 @@ class Trainer:
         )
         self.criterion = nn.CrossEntropyLoss(ignore_index=config["pad_i"])
 
+        if state is not None:
+            self.optimizer.load_state_dict(state["optimizer_state_dict"])
+            self.start_step = state["step"]
+            self.start_epoch = state["epoch"]
+        else:
+            self.start_step = 0
+            self.start_epoch = 0
+
+        # Use learning rate scheduler
+        total_steps = len(self.dataloader) * config["num_epochs"]
+        warmup_steps = int(config["warmup_ratio"] * total_steps)
+        self.scheduler = self._get_lr_scheduler(warmup_steps, total_steps)
+
+        # This is hacky but `_get_lr_scheduler` needs to know about `self.start_step` above
+        if state is not None:
+            self.scheduler.load_state_dict(state["scheduler_state_dict"])
+
     def _get_lr_scheduler(self, warmup_steps: int, total_steps: int):
         # lr_lambda returns factor we apply to the base learning rate
         # actual_lr = base_lr * lr_lambda(current_step)
         def lr_lambda(current_step):
             # If in warmup phase...
-            if current_step < warmup_steps:
+            if current_step + self.start_step < warmup_steps:
                 # Linear warmup from 0 -> 1
                 return float(current_step) / float(max(1, warmup_steps))
 
@@ -65,17 +82,15 @@ class Trainer:
         # Tensorboard
         writer = SummaryWriter(log_dir=f"runs/{config['experiment_name']}")
 
-        # Use learning rate scheduler
-        total_steps = len(self.dataloader) * config["num_epochs"]
-        warmup_steps = int(config["warmup_ratio"] * total_steps)
-        scheduler = self._get_lr_scheduler(warmup_steps, total_steps)
+        step = self.start_step
 
-        step = 0
-
-        for epoch in range(config["num_epochs"]):
+        for epoch in range(self.start_epoch, config["num_epochs"]):
 
             # Logger
-            loop = tqdm(self.dataloader, desc=f"Epoch={epoch}, lr={0:.2e}")
+            loop = tqdm(
+                self.dataloader,
+                desc=f"Epoch={epoch}, lr={self.optimizer.param_groups[0]["lr"]:.2e}",
+            )
 
             # ids: (batch, seq_len)
             for input_ids, target_ids in loop:
@@ -104,7 +119,7 @@ class Trainer:
                 # Nudge parameters based on grad_fn
                 self.optimizer.step()
 
-                scheduler.step()
+                self.scheduler.step()
                 current_lr = self.optimizer.param_groups[0]["lr"]
 
                 # Track metrics in tensorboard
@@ -123,6 +138,7 @@ class Trainer:
                     "epoch": epoch,  # type: ignore
                     "model_state_dict": self.model.state_dict(),
                     "optimizer_state_dict": self.optimizer.state_dict(),
+                    "scheduler_state_dict": self.scheduler.state_dict(),
                     "step": step,
                 },
                 get_model_path(),
