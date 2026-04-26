@@ -51,12 +51,12 @@ class Trainer:
             # (x - min) / (max - min)
             t: float = (current_step - warmup_steps) / (total_steps - warmup_steps)
 
-            min_lr = config["min_lr"]
+            min_lr_ratio = config["min_lr_ratio"]
 
             # Generate cosine curve where cos(0) = 1, cos(pi) = min_lr {0: 1, pi: min_lr}
             # https://www.desmos.com/calculator/c8uvidvptr
             # Below is standard cosine decay formula
-            return min_lr + (1 - min_lr) * 0.5 * (1 + math.cos(t * math.pi))
+            return min_lr_ratio + (1 - min_lr_ratio) * 0.5 * (1 + math.cos(t * math.pi))
 
         return LambdaLR(self.optimizer, lr_lambda)
 

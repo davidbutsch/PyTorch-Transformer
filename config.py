@@ -12,7 +12,7 @@ config = {
     "num_epochs": 32,  # Number of iterations through complete data set
     "batch_size": 64,  # Number of sentences per training batch
     "max_lr": 1e-3,  # Maximum learning rate (after warmup)
-    "min_lr": 1e-5,  # Minimum learning rate (end of cosine decay)
+    "min_lr_ratio": 0.1,  # Minimum learning rate as fraction of max_lr (e.g., 0.1 = decay to 10% of peak)
     "warmup_ratio": 0.05,  # Define what % of steps are warmup steps
     "ds_path": Path(__file__).parent / "training" / "tiny_shakespeare.txt",
     "experiment_name": "logger_test",
