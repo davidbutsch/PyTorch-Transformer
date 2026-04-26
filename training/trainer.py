@@ -75,7 +75,7 @@ class Trainer:
         for epoch in range(config["num_epochs"]):
 
             # Logger
-            loop = tqdm(self.dataloader, desc=f"Epoch {epoch}")
+            loop = tqdm(self.dataloader, desc=f"Epoch={epoch}, lr={0:.2e}")
 
             # ids: (batch, seq_len)
             for input_ids, target_ids in loop:
@@ -113,7 +113,7 @@ class Trainer:
 
                 # Track loss in terminal log
                 loop.set_postfix(loss=f"{loss.item():.4f}")
-                loop.set_description(f"lr={current_lr:.2e}")
+                loop.set_description(f"Epoch={epoch}, lr={current_lr:.2e}")
 
                 step += 1
 

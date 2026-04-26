@@ -11,9 +11,9 @@ config = {
     "pad_i": 0,  # Padding token index
     "num_epochs": 32,  # Number of iterations through complete data set
     "batch_size": 64,  # Number of sentences per training batch
-    "max_lr": 3e-4,  # Maximum learning rate (after warmup)
-    "min_lr": 1e-4,  # Minimum learning rate (end of cosine decay)
-    "warmup_ratio": 0.5,  # Define what % of steps are warmup steps
+    "max_lr": 1e-3,  # Maximum learning rate (after warmup)
+    "min_lr": 1e-5,  # Minimum learning rate (end of cosine decay)
+    "warmup_ratio": 0.05,  # Define what % of steps are warmup steps
     "ds_path": Path(__file__).parent / "training" / "tiny_shakespeare.txt",
     "experiment_name": "logger_test",
     "saves_path": Path(__file__).parent / "saves",
