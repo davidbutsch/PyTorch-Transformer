@@ -1,8 +1,10 @@
+import math
 import json
 
 import torch
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
+from torch.optim.lr_scheduler import LambdaLR
 
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -29,21 +31,51 @@ class Trainer:
         )
 
         # Initialize optimizer, cross-entropy loss
-        self.optimizer = torch.optim.Adam(params=model.parameters(), lr=config["lr"])
+        self.optimizer = torch.optim.AdamW(
+            params=model.parameters(), lr=config["max_lr"]
+        )
         self.criterion = nn.CrossEntropyLoss(ignore_index=config["pad_i"])
+
+    def _get_lr_scheduler(self, warmup_steps: int, total_steps: int):
+        # lr_lambda returns factor we apply to the base learning rate
+        # actual_lr = base_lr * lr_lambda(current_step)
+        def lr_lambda(current_step):
+            # If in warmup phase...
+            if current_step < warmup_steps:
+                # Linear warmup from 0 -> 1
+                return float(current_step) / float(max(1, warmup_steps))
+
+            # Cosine decay (only the decreasing part of the cosine curve)
+
+            # Map current step to: [0, 1]: {warmup_steps -> 0, total_steps -> 1}
+            # (x - min) / (max - min)
+            t: float = (current_step - warmup_steps) / (total_steps - warmup_steps)
+
+            min_lr = config["min_lr"]
+
+            # Generate cosine curve where cos(0) = 1, cos(pi) = min_lr {0: 1, pi: min_lr}
+            # https://www.desmos.com/calculator/c8uvidvptr
+            # Below is standard cosine decay formula
+            return min_lr + (1 - min_lr) * 0.5 * (1 + math.cos(t * math.pi))
+
+        return LambdaLR(self.optimizer, lr_lambda)
 
     def train(self):
 
         # Tensorboard
         writer = SummaryWriter(log_dir=f"runs/{config['experiment_name']}")
 
-        epoch_n = 0
+        # Use learning rate scheduler
+        total_steps = len(self.dataloader) * config["num_epochs"]
+        warmup_steps = int(config["warmup_ratio"] * total_steps)
+        scheduler = self._get_lr_scheduler(warmup_steps, total_steps)
+
         step = 0
 
         for epoch in range(config["num_epochs"]):
 
             # Logger
-            loop = tqdm(self.dataloader, desc=f"Epoch {epoch_n}")
+            loop = tqdm(self.dataloader, desc=f"Epoch {epoch}")
 
             # ids: (batch, seq_len)
             for input_ids, target_ids in loop:
@@ -72,26 +104,30 @@ class Trainer:
                 # Nudge parameters based on grad_fn
                 self.optimizer.step()
 
-                # Track loss in tensorboard
+                scheduler.step()
+                current_lr = self.optimizer.param_groups[0]["lr"]
+
+                # Track metrics in tensorboard
                 writer.add_scalar("Loss", loss.item(), step)
-                step += 1
+                writer.add_scalar("Learning_Rate", current_lr, step)
 
                 # Track loss in terminal log
                 loop.set_postfix(loss=f"{loss.item():.4f}")
+                loop.set_description(f"lr={current_lr:.2e}")
 
-        epoch_n += 1
+                step += 1
 
-        # Save model state at end of each epoch
-        torch.save(
-            {
-                "epoch": epoch,  # type: ignore
-                "model_state_dict": self.model.state_dict(),
-                "optimizer_state_dict": self.optimizer.state_dict(),
-                "step": step,
-            },
-            get_model_path(),
-        )
+            # Save model state at end of each epoch
+            torch.save(
+                {
+                    "epoch": epoch,  # type: ignore
+                    "model_state_dict": self.model.state_dict(),
+                    "optimizer_state_dict": self.optimizer.state_dict(),
+                    "step": step,
+                },
+                get_model_path(),
+            )
 
-        # Save vocab state
-        with open(get_vocabs_path(), "w") as file:
-            json.dump(self.tokenizer.vocabs, file)
+            # Save vocab state
+            with open(get_vocabs_path(), "w") as file:
+                json.dump(self.tokenizer.vocabs, file)
