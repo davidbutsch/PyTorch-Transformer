@@ -1,3 +1,4 @@
+import time
 import torch
 from datasets import IterableDataset, load_dataset
 
@@ -14,6 +15,12 @@ class PackedDataset(IterableDataset):
         self.batch_size = batch_size
         self.max_seq_len = max_seq_len
         self.dataset = load_dataset(config["dataset"], split="train", streaming=True)
+        # Sample examples from a chunk of size `buffer_size`
+        # Seeed with random int in 2^32
+        self.dataset.shuffle(
+            buffer_size=10_000,
+            seed=hash(f"{time.time()}") % 2**32,
+        )
 
     def __iter__(self):
         # chunk_size used to dump token_buffer when capacity reached (+1 token per batch for input/target offset)
