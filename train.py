@@ -1,18 +1,19 @@
 import os
 
 import torch
+from datasets import load_dataset
 
-from config import config, get_model_path
+from config import config, get_merges_path, get_model_path
 from model import Transformer
-from tokenizer import Tokenizer
-from training import Trainer
+from tokenizer import RegexTokenizer
+from model.training import ModelTrainer
 
 
 def train():
 
     print(f"Training on {config['device']}")
 
-    # Load model state from disk
+    # Load transformer model state from disk
     if os.path.exists(get_model_path()):
         print("Loading saved model...")
         state = torch.load(get_model_path())
@@ -20,10 +21,30 @@ def train():
         state = None
 
     model = Transformer(state).to(config["device"])
-    tokenizer = Tokenizer()
 
-    trainer = Trainer(model, tokenizer, state)
+    tokenizer = RegexTokenizer()
 
+    # Load tokenizer model state from disk
+    if os.path.exists(get_merges_path()):
+        print("Loading saved tokenizer...")
+        tokenizer.load()
+    else:
+        print("Training tokenizer...")
+        # Train tokenizer if save not found
+        GPT4_SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+"""
+
+        ds = load_dataset("wikitext", "wikitext-103-v1", split="train")
+        train_text = "\n\n".join(
+            ex["text"] for ex in ds if isinstance(ex, dict) and ex["text"].strip()
+        )
+        train_text = train_text[:5_000_000]
+
+        tokenizer.register_pattern(GPT4_SPLIT_PATTERN)
+        tokenizer.register_special_tokens(config["special_tokens"])
+
+        tokenizer.train(train_text, config["vocab_size"])
+
+    trainer = ModelTrainer(model, tokenizer, state)
     trainer.train()
 
 

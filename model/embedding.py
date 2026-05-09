@@ -12,7 +12,6 @@ class Embedding(nn.Module):
         self.embedding_layer = nn.Embedding(
             num_embeddings=config["vocab_size"],
             embedding_dim=config["d_model"],
-            padding_idx=config["pad_i"],
         )
 
     # Input token_ids: (batch, seq_len, token_id) where token_id is size 1

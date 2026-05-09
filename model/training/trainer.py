@@ -1,59 +1,62 @@
 import math
-import json
 
 import torch
 import torch.nn as nn
-from torch.utils.data.dataloader import DataLoader
 from torch.optim.lr_scheduler import LambdaLR
 
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from model import Transformer
-from tokenizer import Tokenizer
-from config import config, get_model_path, get_vocabs_path
-from .dataset import TextDataset
+from tokenizer import RegexTokenizer
+from config import config, get_model_path
+from .dataset import PackedDataset
 
 
-class Trainer:
+class ModelTrainer:
 
-    def __init__(self, model: Transformer, tokenizer: Tokenizer, state=None) -> None:
+    def __init__(
+        self, model: Transformer, tokenizer: RegexTokenizer, state=None
+    ) -> None:
 
         self.model = model
         self.tokenizer = tokenizer
 
         # Initialize dataset
-        dataset = TextDataset(tokenizer)
-
-        # Initialize dataloader
-        self.dataloader = DataLoader(
-            dataset, batch_size=config["batch_size"], shuffle=True
+        self.iterable_dataset = PackedDataset(
+            tokenizer,
+            batch_size=config["batch_size"],
+            max_seq_len=config["max_seq_len"],
         )
 
         # Initialize optimizer, cross-entropy loss
         self.optimizer = torch.optim.AdamW(
             params=model.parameters(), lr=config["max_lr"]
         )
-        self.criterion = nn.CrossEntropyLoss(ignore_index=config["pad_i"])
+        self.criterion = nn.CrossEntropyLoss()
 
         if state is not None:
             self.optimizer.load_state_dict(state["optimizer_state_dict"])
             self.start_step = state["step"]
-            self.start_epoch = state["epoch"]
         else:
             self.start_step = 0
-            self.start_epoch = 0
 
         # Use learning rate scheduler
-        total_steps = len(self.dataloader) * config["num_epochs"]
-        warmup_steps = int(config["warmup_ratio"] * total_steps)
-        self.scheduler = self._get_lr_scheduler(warmup_steps, total_steps)
+
+        # Compute total steps with SPH, total training hours...
+        self.total_steps = config["total_steps"] - self.start_step
+        warmup_steps = int(config["warmup_ratio"] * self.total_steps)
+        self.scheduler = self._get_lr_scheduler(warmup_steps, self.total_steps)
 
         # This is hacky but `_get_lr_scheduler` needs to know about `self.start_step` above
         if state is not None:
             self.scheduler.load_state_dict(state["scheduler_state_dict"])
 
     def _get_lr_scheduler(self, warmup_steps: int, total_steps: int):
+        assert (
+            total_steps > 0
+        ), "Total steps must be greater than 0. Check your training hours."
+
         # lr_lambda returns factor we apply to the base learning rate
         # actual_lr = base_lr * lr_lambda(current_step)
         def lr_lambda(current_step):
@@ -77,23 +80,38 @@ class Trainer:
 
         return LambdaLR(self.optimizer, lr_lambda)
 
+    def _save_checkpoint(self, step: int) -> None:
+        torch.save(
+            {
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "scheduler_state_dict": self.scheduler.state_dict(),
+                "step": self.start_step + step,
+            },
+            get_model_path(),
+        )
+
     def train(self):
-
         # Tensorboard
-        writer = SummaryWriter(log_dir=f"runs/{config['experiment_name']}")
+        writer = SummaryWriter(log_dir=f"runs/{config['model_prefix']}")
 
-        step = self.start_step
+        step = 0
 
-        for epoch in range(self.start_epoch, config["num_epochs"]):
+        print(f"Training from step {self.start_step}")
 
-            # Logger
-            loop = tqdm(
-                self.dataloader,
-                desc=f"Epoch={epoch}, lr={self.optimizer.param_groups[0]['lr']:.2e}",
-            )
+        loop = tqdm(
+            self.iterable_dataset,
+            desc=f"overall_step={self.start_step + step}, lr={self.optimizer.param_groups[0]['lr']:.2e}",
+            postfix={"loss": f"--.----"},
+            total=self.total_steps,
+        )
 
-            # ids: (batch, seq_len)
-            for input_ids, target_ids in loop:
+        try:
+
+            for example in loop:
+
+                # ids: (batch_size, max_seq_len)
+                input_ids, target_ids = example
 
                 input_ids = input_ids.to(config["device"])
                 target_ids = target_ids.to(config["device"])
@@ -101,13 +119,13 @@ class Trainer:
                 # Clear gradient each round
                 self.optimizer.zero_grad()
 
-                logits = self.model(input_ids)  # (batch, seq_len, vocab_size)
+                logits = self.model(input_ids)  # (batch_size, max_seq_len, vocab_size)
 
                 # Loss expects particular shape
                 loss: torch.Tensor = self.criterion(
-                    # (batch*seq_len, vocab_size)
+                    # (batch_size*seq_len, vocab_size)
                     logits.view(-1, config["vocab_size"]),
-                    target_ids.view(-1),  # (batch*seq_len)
+                    target_ids.reshape(-1),  # (batch_size*seq_len)
                 )
 
                 # Compute gradients (backprop)
@@ -126,24 +144,21 @@ class Trainer:
                 writer.add_scalar("Loss", loss.item(), step)
                 writer.add_scalar("Learning_Rate", current_lr, step)
 
-                # Track loss in terminal log
-                loop.set_postfix(loss=f"{loss.item():.4f}")
-                loop.set_description(f"Epoch={epoch}, lr={current_lr:.2e}")
-
                 step += 1
 
-            # Save model state at end of each epoch
-            torch.save(
-                {
-                    "epoch": epoch,  # type: ignore
-                    "model_state_dict": self.model.state_dict(),
-                    "optimizer_state_dict": self.optimizer.state_dict(),
-                    "scheduler_state_dict": self.scheduler.state_dict(),
-                    "step": step,
-                },
-                get_model_path(),
-            )
+                # Track loss in terminal log
+                loop.set_postfix(loss=f"{loss.item():.4f}")
+                loop.set_description(
+                    f"overall_step={self.start_step + step}, lr={current_lr:.2e}"
+                )
 
-            # Save vocab state
-            with open(get_vocabs_path(), "w") as file:
-                json.dump(self.tokenizer.vocabs, file)
+                # Exit after reaching total steps
+                if step >= self.total_steps:
+                    self._save_checkpoint(step)
+                    return
+
+        except KeyboardInterrupt:
+            print(f"Training interrupted at step {step}")
+            self._save_checkpoint(step)
+        finally:
+            writer.close()

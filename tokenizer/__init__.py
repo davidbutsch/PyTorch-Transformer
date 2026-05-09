@@ -1,1 +1,1 @@
-from .tokenizer import Tokenizer
+from .bpe_tokenizer import RegexTokenizer
