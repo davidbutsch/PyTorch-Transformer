@@ -17,7 +17,7 @@ class PackedDataset(IterableDataset):
         self.dataset = load_dataset(config["dataset"], split="train", streaming=True)
         # Sample examples from a chunk of size `buffer_size`
         # Seeed with random int in 2^32
-        self.dataset.shuffle(
+        self.dataset = self.dataset.shuffle(
             buffer_size=10_000,
             seed=hash(f"{time.time()}") % 2**32,
         )
