@@ -1,2 +1,2 @@
-from .dataset import PackedDataset
+from .dataset import TokenDataset
 from .trainer import ModelTrainer

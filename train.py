@@ -38,8 +38,7 @@ def train():
         )
         train_text = train_text[:5_000_000]
 
-        GPT4_SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+"""
-        tokenizer.register_pattern(GPT4_SPLIT_PATTERN)
+        tokenizer.register_pattern(config["tokenizer_pattern"])
         tokenizer.register_special_tokens(config["special_tokens"])
 
         tokenizer.train(train_text, config["vocab_size"])

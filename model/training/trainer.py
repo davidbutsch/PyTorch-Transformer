@@ -4,13 +4,14 @@ import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import LambdaLR
 
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from model import Transformer
 from tokenizer import RegexTokenizer
 from config import config, get_model_path
-from .dataset import PackedDataset
+from .dataset import TokenDataset
 
 
 class ModelTrainer:
@@ -22,11 +23,12 @@ class ModelTrainer:
         self.model = model
         self.tokenizer = tokenizer
 
-        # Initialize dataset
-        self.iterable_dataset = PackedDataset(
-            tokenizer,
+        dataset = TokenDataset()
+        self.loader = DataLoader(
+            dataset=dataset,
             batch_size=config["batch_size"],
-            max_seq_len=config["max_seq_len"],
+            shuffle=True,
+            pin_memory=True,
         )
 
         # Initialize optimizer, cross-entropy loss
@@ -100,10 +102,9 @@ class ModelTrainer:
         print(f"Training from step {self.start_step}")
 
         loop = tqdm(
-            self.iterable_dataset,
+            self.loader,
             desc=f"overall_step={self.start_step + step}, lr={self.optimizer.param_groups[0]['lr']:.2e}",
             postfix={"loss": f"--.----"},
-            total=self.total_steps,
         )
 
         try:
