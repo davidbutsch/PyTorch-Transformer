@@ -1,19 +1,11 @@
-import torch
 import torch.nn as nn
-from config import config
 
 
 class Embedding(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, vocab_size: int, d_model: int) -> None:
         super().__init__()
+        # T: token_id -> R^d_model
+        self.embedding_layer = nn.Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
 
-        # T: R^1 -> R^d_model
-        # token_id -> embedding vector of length d_model
-        self.embedding_layer = nn.Embedding(
-            num_embeddings=config["vocab_size"],
-            embedding_dim=config["d_model"],
-        )
-
-    # Input token_ids: (batch, seq_len, token_id) where token_id is size 1
-    def forward(self, token_ids: torch.IntTensor):
+    def forward(self, token_ids):
         return self.embedding_layer(token_ids)  # (batch, seq_len, d_model)

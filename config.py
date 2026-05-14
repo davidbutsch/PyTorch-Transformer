@@ -1,25 +1,21 @@
 import torch
 from pathlib import Path
 
+# Model architecture constants — shared by model files, tokenizer, and inference.
+# Training hyperparameters (lr, batch size, warmup, etc.) live in train.py.
 config = {
-    "vocab_size": 2**14,  # Number of learned token embeddings
+    "vocab_size": 2**14,
     "special_tokens": {
         "<|endoftext|>": 2**14 - 1,
     },
-    "max_seq_len": 512,  # Max input token sequence length
-    "d_model": 256,  # Embedding dimension
-    "d_ff": 1024,  # Feedforward network hidden dimension (4*d_model)
-    "h": 8,  # Number of attention heads
-    "N": 6,  # Number of decoder blocks
-    "total_steps": 1_000_000,  # Number of training steps to perform
-    "batch_size": 32,  # Number of examples per training batch
-    "max_lr": 1e-3,  # Maximum learning rate (after warmup)
-    "min_lr_ratio": 0.1,  # Minimum learning rate as fraction of max_lr (e.g., 0.1 = decay to 10% of peak)
-    "warmup_ratio": 0.0,  # Define what % of steps are warmup steps
-    "dataset": "Skylion007/openwebtext",
+    "max_seq_len": 512,
+    "d_model": 256,
+    "d_ff": 1024,
+    "h": 8,
+    "N": 12,
     "tokenizer_pattern": r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+""",
     "tokenizer_prefix": "2pow14",
-    "model_prefix": "openwebtext_model_2",
+    "model_prefix": "openwebtext_model_2_faster_attention_1",
     "dataset_prefix": "openwebtext",
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 }
@@ -49,7 +45,13 @@ def get_vocabs_path() -> Path:
 
 
 def get_model_path() -> Path:
+    """Legacy inference checkpoint path (pre-overhaul saves)."""
     return (
         _get_dir(Path(__file__).parent / "model" / "saves")
         / f"{config['model_prefix']}.pt"
     )
+
+
+def get_checkpoint_path() -> Path:
+    """nanoGPT-style checkpoint written by train.py."""
+    return _get_dir(Path(__file__).parent / "out") / "ckpt.pt"
