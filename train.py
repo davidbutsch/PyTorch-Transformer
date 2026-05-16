@@ -16,7 +16,7 @@ from model import Transformer
 # -----------------------------------------------------------------------------
 # I/O
 out_dir = "out"
-init_from = "scratch"  # 'scratch' | 'resume'
+init_from = "resume"  # 'scratch' | 'resume'
 eval_interval = 500  # evaluate val loss every N iters
 log_interval = 10  # print train loss every N iters
 eval_iters = 100  # batches averaged per eval
@@ -25,23 +25,23 @@ always_save_checkpoint = True  # save even if val loss did not improve
 # Logging
 wandb_log = True
 wandb_project = "pytorch-transformer"
-wandb_run_name = "test"
+wandb_run_name = "run1"
 
 # data
 dataset = arch_config["dataset_prefix"]
 gradient_accumulation_steps = 8  # simulate larger batch via micro-steps
-batch_size = 16  # micro-batch size per accumulation step
+batch_size = 48  # micro-batch size per accumulation step
 block_size = arch_config["max_seq_len"]
 
 # model (read from arch_config so it stays in sync with the actual model)
 vocab_size = arch_config["vocab_size"]
 
 # adamw optimizer
-max_lr = 6e-4
-min_lr = 6e-5  # floor: ~= max_lr / 10 per Chinchilla
-max_iters = 600_000
-warmup_iters = 2_000  # linear warmup steps
-lr_decay_iters = 600_000  # cosine decay ends here; should ~= max_iters
+max_lr = 6e-4  # keep this, no warmup needed mid-run
+min_lr = 6e-5
+max_iters = 150000
+warmup_iters = 0  # you're already warmed up
+lr_decay_iters = 150000  # = 70000 steps remaining #W#########################################################################################################
 weight_decay = 1e-1
 beta1 = 0.9
 beta2 = 0.95
@@ -202,7 +202,6 @@ if checkpoint is not None and "optimizer" in checkpoint:
     optimizer.load_state_dict(checkpoint["optimizer"])
 checkpoint = None  # free memory
 
-
 # -----------------------------------------------------------------------------
 # Training loop
 
@@ -211,7 +210,13 @@ t0 = time.time()
 
 # Run logging
 if wandb_log:
-    wandb.init(project=wandb_project, name=wandb_run_name, config=model_args)
+    wandb.init(
+        project=wandb_project,
+        name=wandb_run_name,
+        config=model_args,
+        resume="allow",
+        id="9gnvj1e7",
+    )
 
 while True:
     # Set LR for this iteration
@@ -225,6 +230,10 @@ while True:
         print(
             f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
         )
+
+        if wandb_log:
+            wandb.log({"val/loss": losses["val"]}, step=iter_num)
+
         if losses["val"] < best_val_loss or always_save_checkpoint:
             best_val_loss = losses["val"]
             if iter_num > 0:
@@ -246,16 +255,6 @@ while True:
                 }
                 print(f"saving checkpoint to {out_dir}/ckpt.pt")
                 torch.save(ckpt, os.path.join(out_dir, "ckpt.pt"))
-
-            if wandb_log:
-                wandb.log(
-                    {
-                        "iter": iter_num,
-                        "train/loss": losses["train"],
-                        "val/loss": losses["val"],
-                        "lr": lr,
-                    }
-                )
 
     # Forward / backward with gradient accumulation
     loss = torch.tensor(0.0)
@@ -282,7 +281,13 @@ while True:
     if iter_num % log_interval == 0:
         # Undo the accumulation division to report the true batch loss
         lossf = loss.item() * gradient_accumulation_steps
-        print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, lr {lr:.2e}")
+        tok_per_sec = (gradient_accumulation_steps * batch_size * block_size) / dt
+        print(
+            f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, lr {lr:.2e}, tok_per_sec {(tok_per_sec / 1e3):.2f}k"
+        )
+        wandb.log(
+            {"train/loss": lossf, "lr": lr, "tok_per_sec": tok_per_sec}, step=iter_num
+        )
 
     iter_num += 1
     if iter_num >= max_iters:
