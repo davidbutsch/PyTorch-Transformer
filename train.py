@@ -37,11 +37,11 @@ block_size = arch_config["max_seq_len"]
 vocab_size = arch_config["vocab_size"]
 
 # adamw optimizer
-max_lr = 6e-4  # keep this, no warmup needed mid-run
-min_lr = 6e-5
-max_iters = 150000
-warmup_iters = 0  # you're already warmed up
-lr_decay_iters = 150000  # = 70000 steps remaining #W#########################################################################################################
+max_lr = 6e-4
+min_lr = 6e-5  # floor: ~= max_lr / 10 per Chinchilla
+max_iters = 150_000
+warmup_iters = 4_000  # linear warmup steps
+lr_decay_iters = 150_000  # cosine decay ends here; should ~= max_iters
 weight_decay = 1e-1
 beta1 = 0.9
 beta2 = 0.95
