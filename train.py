@@ -4,6 +4,7 @@ import time
 import glob
 import random
 from contextlib import nullcontext
+import wandb
 
 import numpy as np
 import torch
@@ -20,6 +21,11 @@ eval_interval = 500  # evaluate val loss every N iters
 log_interval = 10  # print train loss every N iters
 eval_iters = 100  # batches averaged per eval
 always_save_checkpoint = True  # save even if val loss did not improve
+
+# Logging
+wandb_log = True
+wandb_project = "pytorch-transformer"
+wandb_run_name = "test"
 
 # data
 dataset = arch_config["dataset_prefix"]
@@ -74,8 +80,12 @@ assert train_shards, f"No train shards found in {data_dir}. Run prepare.py first
 assert val_shards, f"No val shards found in {data_dir}. Run prepare.py first."
 
 print("─" * 52)
-print(f"  model  │ N={arch_config['N']}, d_model={arch_config['d_model']}, h={arch_config['h']}, d_ff={arch_config['d_ff']}")
-print(f"  data   │ block={block_size}, batch={batch_size}×{gradient_accumulation_steps} accum → {batch_size*gradient_accumulation_steps} eff, tokens/iter={gradient_accumulation_steps*batch_size*block_size:,}")
+print(
+    f"  model  │ N={arch_config['N']}, d_model={arch_config['d_model']}, h={arch_config['h']}, d_ff={arch_config['d_ff']}"
+)
+print(
+    f"  data   │ block={block_size}, batch={batch_size}×{gradient_accumulation_steps} accum → {batch_size*gradient_accumulation_steps} eff, tokens/iter={gradient_accumulation_steps*batch_size*block_size:,}"
+)
 print(f"  optim  │ lr {max_lr}→{min_lr}, warmup={warmup_iters}, iters={max_iters:,}")
 print(f"  system │ {device} | {dtype} | {len(train_shards)} train shard(s)")
 print("─" * 52)
@@ -112,6 +122,7 @@ def get_batch(split: str):
 # Learning rate schedule: linear warmup → cosine decay → floor
 
 
+# https://www.desmos.com/calculator/x14yko4tce
 def get_lr(it: int) -> float:
     if it < warmup_iters:
         return max_lr * (it + 1) / (warmup_iters + 1)
@@ -150,11 +161,11 @@ def estimate_loss():
 # On resume we rebuild from the checkpoint's model_args — not the current
 # config.py — so old experiments load correctly even if config has changed.
 model_args = {
-    "vocab_size":  arch_config["vocab_size"],
-    "d_model":     arch_config["d_model"],
-    "d_ff":        arch_config["d_ff"],
-    "h":           arch_config["h"],
-    "N":           arch_config["N"],
+    "vocab_size": arch_config["vocab_size"],
+    "d_model": arch_config["d_model"],
+    "d_ff": arch_config["d_ff"],
+    "h": arch_config["h"],
+    "N": arch_config["N"],
     "max_seq_len": arch_config["max_seq_len"],
 }
 
@@ -177,6 +188,7 @@ else:
     model = Transformer(**model_args)
 
 model.to(device)
+print(f"params={sum(p.numel() for p in model.parameters())}")
 print(f"Starting at iter {iter_num}")
 
 scaler = torch.amp.GradScaler(enabled=(dtype == "float16"))  # type: ignore[attr-defined]
@@ -190,11 +202,16 @@ if checkpoint is not None and "optimizer" in checkpoint:
     optimizer.load_state_dict(checkpoint["optimizer"])
 checkpoint = None  # free memory
 
+
 # -----------------------------------------------------------------------------
 # Training loop
 
 X, Y = get_batch("train")
 t0 = time.time()
+
+# Run logging
+if wandb_log:
+    wandb.init(project=wandb_project, name=wandb_run_name, config=model_args)
 
 while True:
     # Set LR for this iteration
@@ -212,23 +229,33 @@ while True:
             best_val_loss = losses["val"]
             if iter_num > 0:
                 ckpt = {
-                    "model":          model.state_dict(),
-                    "optimizer":      optimizer.state_dict(),
-                    "iter_num":       iter_num,
-                    "best_val_loss":  best_val_loss,
-                    "model_args":     model_args,
+                    "model": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "iter_num": iter_num,
+                    "best_val_loss": best_val_loss,
+                    "model_args": model_args,
                     "config": {
-                        "batch_size":                  batch_size,
-                        "block_size":                  block_size,
+                        "batch_size": batch_size,
+                        "block_size": block_size,
                         "gradient_accumulation_steps": gradient_accumulation_steps,
-                        "max_lr":                      max_lr,
-                        "min_lr":                      min_lr,
-                        "warmup_iters":                warmup_iters,
-                        "max_iters":                   max_iters,
+                        "max_lr": max_lr,
+                        "min_lr": min_lr,
+                        "warmup_iters": warmup_iters,
+                        "max_iters": max_iters,
                     },
                 }
                 print(f"saving checkpoint to {out_dir}/ckpt.pt")
                 torch.save(ckpt, os.path.join(out_dir, "ckpt.pt"))
+
+            if wandb_log:
+                wandb.log(
+                    {
+                        "iter": iter_num,
+                        "train/loss": losses["train"],
+                        "val/loss": losses["val"],
+                        "lr": lr,
+                    }
+                )
 
     # Forward / backward with gradient accumulation
     loss = torch.tensor(0.0)

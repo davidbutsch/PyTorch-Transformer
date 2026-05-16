@@ -221,7 +221,7 @@ __marimo__/
 *.pwf
 
 # Saves directories
-/model/saves
+/out
 /tokenizer/saves
 
 # Large datasets and data downloads
@@ -230,7 +230,7 @@ datasets/
 */data/
 
 # Log files (TensorBoard, etc.)
-runs/
+wandb
 logs/
 *.log
 
