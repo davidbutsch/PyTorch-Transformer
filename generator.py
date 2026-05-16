@@ -15,7 +15,9 @@ class Generator:
         self.model.eval()
 
         if model_args:
-            print(f"Loaded model: N={model_args['N']}, d_model={model_args['d_model']}, h={model_args['h']}")
+            print(
+                f"Loaded model: N={model_args['N']}, d_model={model_args['d_model']}, h={model_args['h']}"
+            )
 
         self.tokenizer = RegexTokenizer()
         self.tokenizer.load()
@@ -34,7 +36,9 @@ class Generator:
 
             next_token_logits = logits[:, -1, :]
             next_token_probs = torch.softmax(next_token_logits / temperature, dim=-1)
-            next_token_id = int(torch.multinomial(next_token_probs, num_samples=1).item())
+            next_token_id = int(
+                torch.multinomial(next_token_probs, num_samples=1).item()
+            )
 
             self.context.append(next_token_id)
             response_ids.append(next_token_id)
@@ -43,6 +47,6 @@ class Generator:
 
             if (
                 next_token_id == config["special_tokens"]["<|endoftext|>"]
-                or len(response_ids) > 500
+                or len(self.context) > config["max_seq_len"]
             ):
                 break
