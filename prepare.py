@@ -18,9 +18,9 @@ def main():
     tok = RegexTokenizer()
     tok.register_pattern(config["tokenizer_pattern"])
     tok.register_special_tokens(config["special_tokens"])
-    assert os.path.exists(get_merges_path()), (
-        "Missing tokenizer file — train the tokenizer first (run train.py once)."
-    )
+    assert os.path.exists(
+        get_merges_path()
+    ), "Missing tokenizer file. Run run train_tokenizer.py to train the tokenizer first."
     tok.load()
 
     eot = config["special_tokens"]["<|endoftext|>"]

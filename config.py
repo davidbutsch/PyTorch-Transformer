@@ -15,7 +15,6 @@ config = {
     "N": 12,
     "tokenizer_pattern": r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+""",
     "tokenizer_prefix": "2pow14",
-    "model_prefix": "openwebtext_model_2_faster_attention_1",
     "dataset_prefix": "openwebtext",
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 }
@@ -41,14 +40,6 @@ def get_vocabs_path() -> Path:
     return (
         _get_dir(Path(__file__).parent / "tokenizer" / "saves")
         / f"{config['tokenizer_prefix']}.vocabs"
-    )
-
-
-def get_model_path() -> Path:
-    """Legacy inference checkpoint path (pre-overhaul saves)."""
-    return (
-        _get_dir(Path(__file__).parent / "model" / "saves")
-        / f"{config['model_prefix']}.pt"
     )
 
 
