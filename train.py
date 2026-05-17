@@ -4,6 +4,7 @@ import time
 import glob
 import random
 from contextlib import nullcontext
+from typing import cast
 import wandb
 
 import numpy as np
@@ -180,7 +181,11 @@ if init_from == "resume":
     checkpoint = torch.load(ckpt_path, map_location=device)
     model_args = checkpoint["model_args"]  # use saved arch, not current config.py
     model = Transformer(**model_args)
-    model.load_state_dict(checkpoint["model"])
+    model_state_dict = {
+        k.removeprefix("_orig_mod."): v
+        for k, v in checkpoint["model"].items()  # handle compiled model saves
+    }
+    model.load_state_dict(model_state_dict)
     iter_num = checkpoint["iter_num"]
     best_val_loss = checkpoint["best_val_loss"]
 else:
@@ -188,7 +193,12 @@ else:
     model = Transformer(**model_args)
 
 model.to(device)
-print(f"params={sum(p.numel() for p in model.parameters())}")
+num_params = sum(p.numel() for p in model.parameters())
+print(f"model params {(num_params / 1e6 ):.1f}M")
+
+print("Compiling...")
+model = cast(torch.nn.Module, torch.compile(model))
+
 print(f"Starting at iter {iter_num}")
 
 scaler = torch.amp.GradScaler(enabled=(dtype == "float16"))  # type: ignore[attr-defined]

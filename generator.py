@@ -11,7 +11,11 @@ class Generator:
         # even if config.py has been edited since that run.
         model_args = state.get("model_args", {})
         self.model = Transformer(**model_args).to(config["device"])
-        self.model.load_state_dict(state["model"])
+        model_state_dict = {
+            k.removeprefix("_orig_mod."): v
+            for k, v in state["model"].items()  # handle compiled model saves
+        }
+        self.model.load_state_dict(model_state_dict)
         self.model.eval()
 
         if model_args:
